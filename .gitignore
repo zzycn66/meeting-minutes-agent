@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+.idea/
+*.db
+*.db-shm
+*.db-wal
+docx_output/
+app - 副本/
+.mimocode/
+node_modules/

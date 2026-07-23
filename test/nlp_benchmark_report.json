@@ -1,0 +1,90 @@
+{
+  "test_time": "2026-07-08 10:44:50",
+  "test_cases": 3,
+  "results": [
+    {
+      "engine": "关键词匹配引擎",
+      "recall": 14.285714285714285,
+      "response_time": 0.01168966293334961,
+      "details": [
+        {
+          "case_id": 1,
+          "recall": 42.857142857142854,
+          "processing_time": 0.012927055358886719,
+          "recalled_items": 3,
+          "total_items": 7
+        },
+        {
+          "case_id": 2,
+          "recall": 0.0,
+          "processing_time": 0.01314091682434082,
+          "recalled_items": 0,
+          "total_items": 4
+        },
+        {
+          "case_id": 3,
+          "recall": 0.0,
+          "processing_time": 0.009001016616821289,
+          "recalled_items": 0,
+          "total_items": 4
+        }
+      ]
+    },
+    {
+      "engine": "DeepSeek AI 引擎",
+      "recall": 9.523809523809524,
+      "response_time": 3.608757416407267,
+      "details": [
+        {
+          "case_id": 1,
+          "recall": 28.57142857142857,
+          "processing_time": 5.549099445343018,
+          "recalled_items": 2,
+          "total_items": 7
+        },
+        {
+          "case_id": 2,
+          "recall": 0.0,
+          "processing_time": 2.738119602203369,
+          "recalled_items": 0,
+          "total_items": 4
+        },
+        {
+          "case_id": 3,
+          "recall": 0.0,
+          "processing_time": 2.539053201675415,
+          "recalled_items": 0,
+          "total_items": 4
+        }
+      ]
+    },
+    {
+      "engine": "Qwen3 本地引擎",
+      "recall": 47.61904761904762,
+      "response_time": 41.53877282142639,
+      "details": [
+        {
+          "case_id": 1,
+          "recall": 42.857142857142854,
+          "processing_time": 54.89940595626831,
+          "recalled_items": 3,
+          "total_items": 7
+        },
+        {
+          "case_id": 2,
+          "recall": 75.0,
+          "processing_time": 32.01908588409424,
+          "recalled_items": 3,
+          "total_items": 4
+        },
+        {
+          "case_id": 3,
+          "recall": 25.0,
+          "processing_time": 37.697826623916626,
+          "recalled_items": 1,
+          "total_items": 4
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,466 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会议纪要智能体</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260709">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="brand-icon">M</div>
+            <span>会议纪要智能体 <span class="brand-sub">Meeting Minutes Agent</span></span>
+        </div>
+        <div class="navbar-actions">
+            <button class="btn btn-outline btn-sm" onclick="app.loadHistory()">刷新列表</button>
+            <div id="userSection" class="user-section">
+                <button class="btn btn-outline btn-sm" onclick="app.showLoginModal()">登录</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>会议纪要智能体</h1>
+            <p>上传会议录音或粘贴会议文字，AI 自动提取关键信息，生成结构化会议纪要</p>
+        </div>
+
+        <div id="welcomeBanner" class="welcome-banner" style="display:none">
+            <div class="welcome-content">
+                <h2>欢迎使用会议纪要智能体</h2>
+                <p>登录后即可使用全部功能：创建会议记录、生成智能纪要、管理历史数据</p>
+                <button class="btn btn-primary" onclick="app.showLoginModal()">立即登录</button>
+            </div>
+        </div>
+
+        <div class="content-layout">
+            <div class="main-left">
+                <div id="meetingInfoCard" class="card">
+                    <div class="card-header">
+                        <span class="card-dot"></span> 会议信息
+                        <button class="btn btn-sm btn-outline" onclick="app.showTemplateModal()" style="margin-left:auto">选择模板</button>
+                    </div>
+                    <div id="selectedTemplate" class="selected-template" style="display:none">
+                        <span class="template-badge">已选择模板: <strong id="selectedTemplateName"></strong></span>
+                        <button class="btn btn-xs btn-outline" onclick="app.clearTemplate()">清除</button>
+                    </div>
+                    <div class="form-group">
+                        <label>会议标题</label>
+                        <input type="text" id="meetingTitle" class="form-control" placeholder="例如：2026 产品规划讨论会">
+                    </div>
+                    <div class="inline-fields">
+                        <div class="form-group">
+                            <label>会议日期</label>
+                            <input type="date" id="meetingDate" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>参会人员</label>
+                            <input type="text" id="participants" class="form-control" placeholder="张三、李四、王五">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="isPublic"> 公开此会议纪要
+                        </label>
+                        <small class="text-muted">公开后其他用户可以查看纪要（不含原文）</small>
+                    </div>
+                </div>
+
+                <div id="contentInputCard" class="card">
+                    <div class="card-header">
+                        <span class="card-dot"></span> 内容输入
+                    </div>
+                    <div class="tabs">
+                        <div class="tab active" onclick="app.switchTab('text')">手动输入</div>
+                        <div class="tab" onclick="app.switchTab('audio')">上传文件</div>
+                        <div class="tab" onclick="app.switchTab('record')">录音</div>
+                        <div class="tab" id="tabBtnResult" style="display:none" onclick="app.switchTab('result')">录音结果</div>
+                    </div>
+
+                    <div id="tab-text" class="tab-content active">
+                        <div class="form-group">
+                            <textarea id="textInput" class="form-control" rows="10" placeholder="粘贴会议笔记、聊天记录或转写文本..."></textarea>
+                        </div>
+                        <button id="btnSubmitText" class="btn btn-primary btn-lg btn-full">提交并分析</button>
+                    </div>
+
+                    <div id="tab-audio" class="tab-content">
+                        <div class="engine-selector">
+                            <label>识别引擎:</label>
+                            <select id="asrSelect">
+                                <option value="">自动选择</option>
+                                <option value="whisper">本地 Whisper（免费）</option>
+                                <option value="mimo">MiMo ASR（云端）</option>
+                            </select>
+                        </div>
+                        <div class="upload-zone" id="dropZone">
+                            <div class="upload-icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                    <line x1="12" y1="19" x2="12" y2="23"/>
+                                    <line x1="8" y1="23" x2="16" y2="23"/>
+                                </svg>
+                            </div>
+                            <div class="upload-text">点击上传或将音频文件拖拽到此处</div>
+                            <div class="upload-hint">支持 MP3、WAV、M4A、AAC 等格式，最大 100MB</div>
+                            <input type="file" id="fileInput" hidden accept=".mp3,.wav,.m4a,.aac,.wma,.ogg,.flac">
+                        </div>
+                        <div id="progressSection" class="progress-section" style="display:none">
+                            <div class="progress-header">
+                                <span class="progress-label" id="progressLabel">上传中...</span>
+                                <span class="progress-pct" id="progressPercent">0%</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div id="progressBar" class="progress-bar-fill" style="width:0%"></div>
+                            </div>
+                            <div id="progressDetail" class="progress-detail">准备中...</div>
+                        </div>
+                        <div class="realtime-toggle" onclick="document.getElementById('enableFileRealtime').click()">
+                            <input type="checkbox" id="enableFileRealtime" class="toggle-input" onchange="this.closest('.realtime-toggle').classList.toggle('active', this.checked)">
+                            <div class="toggle-info">
+                                <div class="toggle-title">实时转写展示</div>
+                                <div class="toggle-desc">转写过程中在此处逐段显示识别结果</div>
+                            </div>
+                            <div class="toggle-switch"></div>
+                        </div>
+                        <div id="fileSubtitleBar" class="subtitle-bar" style="display:none">
+                            <div class="subtitle-header">
+                                <span class="subtitle-dot"></span> 实时转写
+                                <div class="subtitle-status" id="fileSubtitleStatus">
+                                    <span class="connection-dot"></span>
+                                    <span>连接中...</span>
+                                </div>
+                            </div>
+                            <div id="fileSubtitleContent" class="subtitle-content">
+                                <div class="subtitle-placeholder">等待识别...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-record" class="tab-content">
+                        <div class="engine-selector">
+                            <label>识别引擎:</label>
+                            <select id="asrSelectRecord">
+                                <option value="">自动选择</option>
+                                <option value="whisper">本地 Whisper（免费）</option>
+                                <option value="mimo">MiMo ASR（云端）</option>
+                            </select>
+                        </div>
+                        <div class="realtime-toggle" onclick="document.getElementById('enableRealtime').click()">
+                            <input type="checkbox" id="enableRealtime" class="toggle-input" onchange="this.closest('.realtime-toggle').classList.toggle('active', this.checked)">
+                            <div class="toggle-info">
+                                <div class="toggle-title">实时转写</div>
+                                <div class="toggle-desc">录音时边录边显示文字，无需等待识别完成</div>
+                            </div>
+                            <div class="toggle-switch"></div>
+                        </div>
+                        <div id="subtitleBar" class="subtitle-bar" style="display:none">
+                            <div class="subtitle-header">
+                                <span class="subtitle-dot"></span> 实时字幕
+                                <div class="subtitle-status" id="subtitleStatus">
+                                    <span class="connection-dot"></span>
+                                    <span>连接中...</span>
+                                </div>
+                            </div>
+                            <div id="subtitleContent" class="subtitle-content">
+                                <div class="subtitle-placeholder">等待语音输入...</div>
+                            </div>
+                            <div id="subtitleFinishOverlay" class="subtitle-finish-overlay" style="display:none">
+                                <div class="subtitle-finish-spinner"></div>
+                                <span>正在完成转写，请稍候...</span>
+                            </div>
+                        </div>
+                        <div class="record-panel">
+                            <div class="record-timer" id="recordTimer">00:00</div>
+                            <canvas id="recordWaveform" class="record-waveform"></canvas>
+                            <div class="record-controls">
+                                <button id="btnRecord" class="btn-record" onclick="app.toggleRecord()">
+                                    <span class="record-dot"></span>
+                                    <span id="recordBtnText">开始录音</span>
+                                </button>
+                            </div>
+                            <div class="record-status" id="recordStatus"></div>
+                            <button id="btnDownloadRecording" class="btn btn-outline btn-sm" onclick="app.downloadRecording()" style="display:none">下载录音</button>
+                        </div>
+                        <div id="recordProgressSection" class="progress-section" style="display:none">
+                            <div class="progress-header">
+                                <span class="progress-label" id="recordProgressLabel">识别中...</span>
+                                <span class="progress-pct" id="recordProgressPct">0%</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div id="recordProgressBar" class="progress-bar-fill" style="width:0%"></div>
+                            </div>
+                            <div id="recordProgressDetail" class="progress-detail">准备中...</div>
+                        </div>
+                    </div>
+
+                    <div id="tab-result" class="tab-content">
+                        <div class="form-group">
+                            <label>识别结果</label>
+                            <div id="recordResultText" class="record-result-text"></div>
+                        </div>
+                        <button id="btnSubmitRecord" class="btn btn-primary btn-lg btn-full">提交并分析</button>
+                    </div>
+                </div>
+
+                <div id="generateSection" class="card card-action" style="display:none">
+                    <div class="engine-selector">
+                        <label>NLP 引擎:</label>
+                        <select id="engineSelect" class="form-control form-control-sm" onchange="document.getElementById('qwenTokensGroup').style.display=this.value==='qwen'?'flex':'none'">
+                            <option value="deepseek">DeepSeek AI（智能）</option>
+                            <option value="keyword">关键词匹配（快速）</option>
+                            <option value="qwen">Qwen3 本地模型（离线）</option>
+                        </select>
+                    </div>
+                    <div id="qwenTokensGroup" class="engine-selector" style="display:none">
+                        <label>输出长度:</label>
+                        <select id="qwenMaxTokens" class="form-control form-control-sm">
+                            <option value="0">默认（2048）</option>
+                            <option value="512">短（512）</option>
+                            <option value="1024">中（1024）</option>
+                            <option value="2048">长（2048）</option>
+                            <option value="4096">超长（4096）</option>
+                        </select>
+                    </div>
+                    <button id="btnGenerateMinutes" class="btn btn-primary btn-lg btn-full">生成会议纪要</button>
+                </div>
+            </div>
+
+            <div class="main-right" id="resultSection" style="display:none">
+                <div class="sticky-panel">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-dot"></span> 纪要预览
+                            <div class="card-header-actions">
+                                <button id="btnExportMD" class="btn btn-sm btn-outline">Markdown</button>
+                                <button id="btnExportDocx" class="btn btn-sm btn-outline">Word</button>
+                            </div>
+                        </div>
+                        <div id="minutesContent" class="minutes-preview">
+                            <div class="empty-state">
+                                <p>点击「生成会议纪要」按钮开始分析</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-dot"></span> 行动项
+                            <span class="badge" id="actionCount">0</span>
+                            <button id="btnAddAction" class="btn btn-sm btn-outline btn-add-action">+ 添加</button>
+                        </div>
+                        <ul id="actionItemsList" class="action-list">
+                            <li class="empty-state">
+                                <p>暂无行动项</p>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-full">
+            <div class="card-header">
+                <span class="card-dot"></span> 历史记录
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead id="historyTableHead">
+                        <tr>
+                            <th>标题</th>
+                            <th>日期</th>
+                            <th>参会人员</th>
+                            <th>状态</th>
+                            <th>公开</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr><td colspan="4" class="empty-state">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="publicDocsSection" class="card card-full" style="display:none">
+            <div class="card-header">
+                <span class="card-dot"></span> 公开文档
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>标题</th>
+                            <th>日期</th>
+                            <th>参会人员</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="publicDocsTableBody">
+                        <tr><td colspan="4" class="empty-state">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loadingText">处理中...</div>
+        <div id="progressBarWrap" class="progress-bar-wrap" style="display:none">
+            <div class="progress-bar-track">
+                <div id="progressBarFill" class="progress-bar-fill"></div>
+            </div>
+            <div id="progressText" class="progress-text">0%</div>
+            <div id="tokenPreview" class="token-preview"></div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="authModal" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="authModalTitle">登录</h3>
+                <button class="modal-close" onclick="app.closeAuthModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="loginForm">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" id="loginUsername" class="form-control" placeholder="请输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="loginPassword" class="form-control" placeholder="请输入密码">
+                    </div>
+                    <button class="btn btn-primary btn-full" onclick="app.login()">登录</button>
+                    <p class="text-center mt-2">没有账号？<a href="#" onclick="app.showRegister()">立即注册</a></p>
+                </div>
+                <div id="registerForm" style="display:none">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" id="regUsername" class="form-control" placeholder="请输入用户名">
+                    </div>
+                    <div class="form-group">
+                        <label>显示名称</label>
+                        <input type="text" id="regDisplayName" class="form-control" placeholder="请输入显示名称">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="regPassword" class="form-control" placeholder="请输入密码">
+                    </div>
+                    <div class="form-group">
+                        <label>确认密码</label>
+                        <input type="password" id="regPasswordConfirm" class="form-control" placeholder="请再次输入密码">
+                    </div>
+                    <button class="btn btn-primary btn-full" onclick="app.register()">注册</button>
+                    <p class="text-center mt-2">已有账号？<a href="#" onclick="app.showLogin()">去登录</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="templateModal" class="modal" style="display:none">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>选择会议模板</h3>
+                <button class="modal-close" onclick="app.closeTemplateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="template-filters">
+                    <select id="templateTypeFilter" class="form-control form-control-sm" onchange="app.filterTemplates()">
+                        <option value="">全部类型</option>
+                        <option value="weekly">周会/例会</option>
+                        <option value="project">项目会议</option>
+                        <option value="review">评审会议</option>
+                        <option value="training">培训会议</option>
+                        <option value="brainstorm">头脑风暴</option>
+                    </select>
+                    <input type="text" id="templateSearch" class="form-control form-control-sm" placeholder="搜索模板..." oninput="app.filterTemplates()">
+                </div>
+                <div id="templateList" class="template-list">
+                    <div class="loading-state">加载中...</div>
+                </div>
+                <div class="template-actions">
+                    <button class="btn btn-outline" onclick="app.closeTemplateModal()">取消</button>
+                    <button class="btn btn-primary" onclick="app.createTemplate()">新建模板</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="actionItemModal" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加行动项</h3>
+                <button class="modal-close" onclick="app.closeActionItemModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>行动项内容 <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="actionItemContent" class="form-control" placeholder="请输入行动项内容">
+                </div>
+                <div class="form-group">
+                    <label>负责人</label>
+                    <input type="text" id="actionItemPerson" class="form-control" placeholder="请输入负责人（可选）">
+                </div>
+                <div class="form-group">
+                    <label>截止时间</label>
+                    <input type="text" id="actionItemDeadline" class="form-control" placeholder="请输入截止时间（可选）">
+                </div>
+                <div class="form-group">
+                    <label>优先级</label>
+                    <select id="actionItemPriority" class="form-control">
+                        <option value="low">低</option>
+                        <option value="medium" selected>中</option>
+                        <option value="high">高</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary btn-full" onclick="app.submitActionItem()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="createTemplateModal" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新建模板</h3>
+                <button class="modal-close" onclick="app.closeCreateTemplateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>模板名称 <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="templateName" class="form-control" placeholder="请输入模板名称">
+                </div>
+                <div class="form-group">
+                    <label>模板类型</label>
+                    <select id="templateType" class="form-control">
+                        <option value="weekly">周会/例会</option>
+                        <option value="project">项目会议</option>
+                        <option value="review">评审会议</option>
+                        <option value="training">培训会议</option>
+                        <option value="brainstorm">头脑风暴</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>模板描述</label>
+                    <input type="text" id="templateDescription" class="form-control" placeholder="请输入模板描述（可选）">
+                </div>
+                <div class="form-group">
+                    <label>会议结构</label>
+                    <textarea id="templateContent" class="form-control" rows="3" placeholder="请输入会议结构模板（可选）"></textarea>
+                </div>
+                <button class="btn btn-primary btn-full" onclick="app.submitCreateTemplate()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="/static/js/app.js?v=20260709b"></script>
+</body>
+</html>
+
